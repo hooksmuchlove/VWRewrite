@@ -3072,6 +3072,12 @@ local aB
 local aC
 local aD
 local aE
+local auraSpeedSync
+local auraGhostFix
+local auraWatchTarget
+local auraWatchHealth
+local auraWatchDamage
+local auraWatchSince=0
 local aF={}
 local aG,aH={},{}
 local aI,aJ,aK,aL=u.Libraries.auraanims,tick()
@@ -3279,7 +3285,6 @@ local a_=aX.Character.PrimaryPart
 if a_ then
 local a0=CFrame.lookAt(aU,a_.Position).LookVector
 local a1=aU+a0*math.max(aY.Magnitude-14.399,0)
-aO=tick()
 L.SwordController.lastAttack=workspace:GetServerTimeNow()
 F.attackReach=(aY.Magnitude*100)//1/100
 F.attackReachUpdate=tick()+1
@@ -3288,7 +3293,7 @@ if aY.Magnitude<14.4 then
 aJ=tick()
 end
 if tick()>aO then
-aO=tick()+(ae.Enabled and 0.22 or 0.1)
+aO=tick()+((auraSpeedSync and auraSpeedSync.Enabled)and math.max(0.115,tonumber(aS and aS.sword and aS.sword.attackSpeed)or 0.3)or(ae.Enabled and 0.22 or 0.1))
 aM:FireServer{
 weapon=aR.tool,
 chargedAttack={chargeRatio=0},
@@ -3303,6 +3308,12 @@ selfPosition={value=a1},
 },
 }
 aP+=1
+if auraGhostFix and auraGhostFix.Enabled then
+auraWatchTarget=aX
+auraWatchHealth=tonumber(aX.Character:GetAttribute('Health'))or(aX.Humanoid and aX.Humanoid.Health)
+auraWatchDamage=tonumber(aX.Character:GetAttribute('LastDamageTakenTime'))or-1
+auraWatchSince=tick()
+end
 end
 local a2=getgenv().projectileCount or{}
 if#a2>0 then do
@@ -3344,6 +3355,32 @@ end
 end,{
 name="KillauraFunction"
 })
+task.spawn(function()
+while af.Enabled do
+task.wait(0.25)
+if auraGhostFix and auraGhostFix.Enabled and auraWatchTarget then
+local aT=auraWatchTarget.Character
+local aU=auraWatchTarget.RootPart
+if not aT or not aU or not x.isAlive then
+auraWatchTarget=nil
+else
+local aV=tonumber(aT:GetAttribute('Health'))or(auraWatchTarget.Humanoid and auraWatchTarget.Humanoid.Health)
+local aW=tonumber(aT:GetAttribute('LastDamageTakenTime'))or-1
+if aV~=auraWatchHealth or aW~=auraWatchDamage then
+auraWatchHealth=aV
+auraWatchDamage=aW
+auraWatchSince=tick()
+elseif(tick()-auraWatchSince)>=1.05 and(x.character.RootPart.Position-aU.Position).Magnitude<=14.4 then
+auraWatchSince=tick()
+local aX=getAttackData()
+if aX then
+switchItem(aX.tool,0)
+end
+end
+end
+end
+end
+end)
 repeat
 aQ()
 
@@ -3351,6 +3388,7 @@ task.wait(1/ak.Value)
 until not af.Enabled
 else
 F.KillauraTarget=nil
+auraWatchTarget=nil
 for aO,aP in aH do
 aP.Adornee=nil
 end
@@ -3625,6 +3663,21 @@ end)
 end
 end,
 Tooltip='Only attacks when the sword is held'
+}
+auraSpeedSync=af:CreateToggle{
+Name='Attack speed sync',
+Default=true,
+Tooltip="Attack at the sword's real cooldown instead of the fixed delay."
+}
+auraGhostFix=af:CreateToggle{
+Name='Ghost hit recovery',
+Default=true,
+Function=function(aP)
+if not aP then
+auraWatchTarget=nil
+end
+end,
+Tooltip='Re-syncs the sword hand if a close target stops taking damage.'
 }
 aF=af:CreateToggle{
 Name='Swing only',
